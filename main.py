@@ -214,6 +214,15 @@ def handle_confirm_terms(call):
         bot.send_message(call.message.chat.id, "❌ Failed to open QR.")
         print("Error QR:", e)
 
+@bot.message_handler(commands=['payment'])
+def payment(message):
+    fake_call = SimpleNamespace(
+        message=message,
+        data="show_qr",
+        id="manual_payment_call"
+    )
+    send_terms(fake_call)
+
 keep_alive()
 print("Bot is running...")
 bot.remove_webhook()
