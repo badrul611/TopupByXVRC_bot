@@ -1,6 +1,9 @@
+import os
 import time
+from dotenv import load_dotenv
 from telebot import TeleBot, types
 
+load_dotenv()
 cooldown = {}
 last_pressed = {}
 
@@ -67,7 +70,7 @@ PRICE_PAGES = [
 20956 💎 RM 1472.00"""
 ]
 
-bot = TeleBot('7431663028:AAGtUXC8qycen4D2jltZ-WU_X2fXVneu8BM')
+bot = TeleBot(os.getenv("BOT_TOKEN"))
 
 cooldown = {}
 user_loading = []
