@@ -64,7 +64,7 @@ PRICE_PAGES = [
 20956 💎 RM 1472.00"""
 ]
 
-bot = telebot.TeleBot("7431663028:AAFV49gw_JPYXOmmkt5sf7GQyIgV-KSaeHc")
+bot = TeleBot("7431663028:AAFV49gw_JPYXOmmkt5sf7GQyIgV-KSaeHc")
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
