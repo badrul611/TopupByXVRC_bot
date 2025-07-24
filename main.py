@@ -70,6 +70,10 @@ PRICE_PAGES = [
 20956 💎 RM 1472.00"""
 ]
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
 bot = TeleBot(os.getenv("BOT_TOKEN"))
 
 cooldown = {}
