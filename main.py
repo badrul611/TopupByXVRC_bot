@@ -67,7 +67,7 @@ PRICE_PAGES = [
 20956 💎 RM 1472.00"""
 ]
 
-bot = TeleBot('8238863597:AAEOF2PiRObtaNL11eu048cwU4AFdmSKI7U')
+bot = TeleBot('7431663028:AAFV49gw_JPYXOmmkt5sf7GQyIgV-KSaeHc')
 
 cooldown = {}
 user_loading = []
