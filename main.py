@@ -1,5 +1,8 @@
-from keep_alive import keep_alive
+import time
 from telebot import TeleBot, types
+
+cooldown = {}
+last_pressed = {}
 
 PRICE_PAGES = [
 """84 💎 RM 7.00
@@ -64,7 +67,10 @@ PRICE_PAGES = [
 20956 💎 RM 1472.00"""
 ]
 
-bot = TeleBot("7431663028:AAFV49gw_JPYXOmmkt5sf7GQyIgV-KSaeHc")
+bot = TeleBot('8238863597:AAEOF2PiRObtaNL11eu048cwU4AFdmSKI7U')
+
+cooldown = {}
+user_loading = []
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
@@ -105,7 +111,7 @@ def callback_query(call):
         return
 
     if call.data == "order":
-        order(call.message)  # Terus panggil fungsi /order
+        order_with_cooldown(call)
         return
 
     page = int(call.data.split("_")[1])
@@ -122,8 +128,21 @@ def callback_query(call):
         reply_markup=markup
     )
 
-@bot.message_handler(commands=["order"])
-def order(message):
+@bot.callback_query_handler(func=lambda call: call.data == "order")
+def order_with_cooldown(call):
+    user_id = call.from_user.id
+    now = time.time()
+
+    if user_id in cooldown and now - cooldown[user_id] < 5:
+        bot.answer_callback_query(
+            call.id,
+            text="⛔ Whoa whoa, one click is enough! 😂",
+            show_alert=True
+        )
+        return
+
+    cooldown[user_id] = now
+
     text = (
         "🛒 How to Order MLBB Diamonds:\n\n"
         "1. Choose the diamond amount you want (refer to /price).\n\n"
@@ -149,8 +168,8 @@ def order(message):
         types.InlineKeyboardButton("📨 Contact Admin", url="https://t.me/XVRC_SHOP")
     )
 
-    bot.send_message(message.chat.id, text, parse_mode="HTML", reply_markup=markup)
-
+    bot.send_message(call.message.chat.id, text, parse_mode="HTML", reply_markup=markup)
+    bot.answer_callback_query(call.id)
 
 @bot.callback_query_handler(func=lambda call: call.data == "copy_format")
 def send_copy_format(call):
@@ -165,14 +184,14 @@ def send_copy_format(call):
     bot.send_message(call.message.chat.id, f"\n{format_text}\n", parse_mode="Markdown")
 
 
-@bot.callback_query_handler(func=lambda call: call.data == "order_now")
+@bot.callback_query_handler(func=lambda call: call.data == "order")
 def handle_order_now(call):
-    order(call.message)
+    handle_order(call)
 
-@bot.callback_query_handler(func=lambda call: call.data == "show_qr")
-def send_terms(call):
+# ⬇️ Fungsi ini untuk View Payment Details + /payment command
+def send_terms(chat_id):
     text = (
-        "⚠️ <b>Terms of Payment to XVRC SHOP</b> ⚠️\n\n"
+        "⚠️Terms of Payment to XVRC SHOP⚠️\n\n"
         "By pressing the button below, you confirm that you have read and understood the following terms:\n\n"
         "1. All payments (via QR or manual transfer) are for verified customers of XVRC SHOP only.\n"
         "2. Do not share or distribute our payment details to third parties without consent.\n"
@@ -181,24 +200,31 @@ def send_terms(call):
         "5. All transactions are final and valid once payment is made.\n"
         "6. False claims or misuse will be reported to the authorities.\n"
         "7. You agree that all payments are made at your own risk.\n\n"
-        "— — — — — — — — — — —\n\n"
-        "⚠️ <b>Syarat Pembayaran ke Akaun XVRC SHOP</b> ⚠️\n\n"
-        "Dengan menekan butang di bawah, anda mengesahkan bahawa anda telah membaca dan memahami syarat berikut:\n\n"
-        "1. Segala bayaran (QR atau pindahan manual) hanya untuk pelanggan sah XVRC SHOP.\n"
-        "2. Dilarang berkongsi atau sebarkan maklumat pembayaran kepada pihak ketiga tanpa kebenaran.\n"
-        "3. XVRC SHOP tidak bertanggungjawab atas sebarang penyalahgunaan oleh pihak luar.\n"
-        "4. XVRC SHOP tidak terlibat dalam kegiatan 'scam', akaun keldai atau penipuan.\n"
-        "5. Semua transaksi adalah sah dan muktamad selepas pembayaran dibuat.\n"
-        "6. Sebarang tuntutan palsu atau salah guna akan dilaporkan kepada pihak berkuasa.\n"
-        "7. Anda bersetuju bahawa segala pembayaran dibuat atas tanggungjawab sendiri.\n\n"
+
         "✅ Please click the button below if you agree to the terms above."
     )
 
     agree_markup = types.InlineKeyboardMarkup()
     agree_markup.add(types.InlineKeyboardButton("✅ I Agree & Saya Setuju", callback_data="confirm_terms"))
 
-    bot.send_message(call.message.chat.id, text, parse_mode="HTML", reply_markup=agree_markup)
+    bot.send_message(chat_id, text, reply_markup=agree_markup)
 
+@bot.callback_query_handler(func=lambda call: call.data == "show_qr")
+def handle_show_qr(call):
+    send_terms(call.message.chat.id)
+
+@bot.message_handler(commands=["payment"])
+def payment(message):
+    user_id = message.from_user.id
+    now = time.time()
+
+    if user_id in cooldown and now - cooldown[user_id] < 3:
+        bot.send_message(message.chat.id, "⛔ Give me a sec… I’m just a robot 🤖💨")
+        return
+
+    cooldown[user_id] = now
+    bot.send_message(message.chat.id, "✅ Request accepted. Showing payment info...")
+    send_terms(message.chat.id)
 
 @bot.callback_query_handler(func=lambda call: call.data == "confirm_terms")
 def handle_confirm_terms(call):
@@ -214,17 +240,135 @@ def handle_confirm_terms(call):
         bot.send_message(call.message.chat.id, "❌ Failed to open QR.")
         print("Error QR:", e)
 
-from types import SimpleNamespace
-@bot.message_handler(commands=['payment'])
-def payment(message):
-    fake_call = SimpleNamespace(
-        message=message,
-        data="show_qr",
-        id="manual_payment_call"
-    )
-    send_terms(fake_call)
+@bot.callback_query_handler(func=lambda call: call.data == "payment")
+def handle_payment_button(call):
+    user_id = call.from_user.id
+    now = time.time()
 
-keep_alive()
+    if user_id in cooldown and now - cooldown[user_id] < 3:
+        bot.answer_callback_query(call.id, "⛔ Give me a sec… I’m just a robot 🤖💨", show_alert=True)
+        return
+
+    cooldown[user_id] = now
+    send_terms(call.message.chat.id)
+
+@bot.callback_query_handler(func=lambda call: call.data == "contact")
+def contact_social(call):
+    loading = types.InlineKeyboardMarkup()
+    loading.add(types.InlineKeyboardButton("⏳ Loading...", callback_data="none"))
+    bot.edit_message_reply_markup(
+        call.message.chat.id,
+        call.message.message_id,
+        reply_markup=loading
+    )
+    contact_buttons = types.InlineKeyboardMarkup(row_width=2)
+    contact_buttons.add(
+        types.InlineKeyboardButton(" Telegram Chat", url="https://t.me/XVRC_SHOP"),
+        types.InlineKeyboardButton(" WhatsApp Chat", url="https://wa.me/601140549179"),
+        types.InlineKeyboardButton(" Telegram Group", url="https://t.me/XVRCShop"),
+        types.InlineKeyboardButton(" WhatsApp Group", url="https://chat.whatsapp.com/BjSWmTIjH2IEbKlfKPafHP"),
+        types.InlineKeyboardButton(" Instagram", url="https://www.instagram.com/xvrc.gamingshop/"),
+        types.InlineKeyboardButton(" Facebook", url="https://www.facebook.com/xvrcshop"),
+        types.InlineKeyboardButton(" TikTok", url="https://tiktok.com/@xvrc.gamingshop"),
+        types.InlineKeyboardButton(" Shopee", url="https://shopee.com.my/xvrc.gamingshop?smtt=0.262404361-1662092615.3")
+    )
+    
+    contact_buttons.add(
+        types.InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")
+    )
+
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text="📲 Choose a platform:",
+        reply_markup=contact_buttons
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data == "back_to_menu")
+def back_to_menu(call):
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton('💎 MLBB Price List', callback_data='price'),
+        types.InlineKeyboardButton('🧾 How To Order', callback_data='order'),
+        types.InlineKeyboardButton('💰 Payment Info', callback_data='payment'),
+        types.InlineKeyboardButton('☎️ Contact & Social Media', callback_data='contact'),
+        types.InlineKeyboardButton('❓ FAQ', callback_data='faq'),
+    )
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=(
+            "👋 <b>Welcome back to XVRC SHOP!</b>\n\n"
+            "Fast • Affordable • Secure\n"
+            "Trusted by gamers, powered by speed.\n"
+            "Compare our prices and order now! 💥"
+        ),
+        parse_mode="HTML",
+        reply_markup=markup
+    )
+
+@bot.callback_query_handler(func=lambda call: call.data == "faq")
+def handle_faq(call):
+    text = (
+        "<b>❓ Frequently Asked Questions (FAQ)</b>\n\n"
+
+        "🔹 <b>1. Berapa lama proses topup?</b>\n"
+        "⏱️ 1 - 5 minit (kecuali waktu sibuk atau masalah server).\n\n"
+
+        "🔹 <b>2. Saya dah bayar tapi belum dapat?</b>\n"
+        "📩 Pastikan anda hantar bukti bayaran, ID, Server & Username kepada admin.\n\n"
+
+        "🔹 <b>3. ID/Server salah, boleh refund?</b>\n"
+        "❌ Maaf, tiada refund jika info salah diberikan.\n\n"
+
+        "🔹 <b>4. Macam mana nak tahu ID dan Server MLBB saya?</b>\n"
+        "👤 Buka game > Profile > Lihat User ID dan nombor dalam kurungan (Server).\n\n"
+
+        "🔹 <b>5. Boleh topup akaun negara lain?</b>\n"
+        "🌍 Boleh , tapi jumlah diamond tak sama .\n\n"
+
+        "📌 Masih ada soalan? Tekan butang di bawah untuk hubungi admin."
+    )
+
+    markup = types.InlineKeyboardMarkup()
+    markup.add(types.InlineKeyboardButton("📨 Contact Admin", url="https://t.me/XVRC_SHOP"))
+    markup = types.InlineKeyboardMarkup(row_width=1)
+    markup.add(
+        types.InlineKeyboardButton("📨 Contact Admin", url="https://t.me/XVRC_SHOP"),
+        types.InlineKeyboardButton("⬅️ Back to Menu", callback_data="back_to_menu")
+    ) 
+
+    @bot.callback_query_handler(func=lambda call: call.data == "back_to_menu")
+    def back_to_menu(call):
+        markup = types.InlineKeyboardMarkup(row_width=1)
+        markup.add(
+            types.InlineKeyboardButton('💎 MLBB Price List', callback_data='price'),
+            types.InlineKeyboardButton('🧾 How To Order', callback_data='order'),
+            types.InlineKeyboardButton('💰 Payment Info', callback_data='payment'),
+            types.InlineKeyboardButton('☎️ Contact & Social Media', callback_data='contact'),
+            types.InlineKeyboardButton('❓ FAQ', callback_data='faq'),
+        )
+        bot.edit_message_text(
+            chat_id=call.message.chat.id,
+            message_id=call.message.message_id,
+            text=(
+                "👋 <b>Welcome back to XVRC SHOP!</b>\n\n"
+                "Fast • Affordable • Secure\n"
+                "Trusted by gamers, powered by speed.\n"
+                "Compare our prices and order now! 💥"
+            ),
+            parse_mode="HTML",
+            reply_markup=markup
+        )
+
+    bot.edit_message_text(
+        chat_id=call.message.chat.id,
+        message_id=call.message.message_id,
+        text=text,
+        parse_mode="HTML",
+        reply_markup=markup
+    )
+
+# ⬇️ Start polling
 print("Bot is running...")
-bot.remove_webhook()
 bot.infinity_polling()
