@@ -216,4 +216,5 @@ def handle_confirm_terms(call):
 
 keep_alive()
 print("Bot is running...")
+bot.remove_webhook()
 bot.infinity_polling()
