@@ -214,6 +214,7 @@ def handle_confirm_terms(call):
         bot.send_message(call.message.chat.id, "❌ Failed to open QR.")
         print("Error QR:", e)
 
+from types import SimpleNamespace
 @bot.message_handler(commands=['payment'])
 def payment(message):
     fake_call = SimpleNamespace(
